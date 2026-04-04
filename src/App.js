@@ -1,86 +1,86 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from "firebase/firestore";
+import AdminDashboard from "./AdminDashboard";
 
-export default function App() {
-  const [searchTerm, setSearchTerm] = useState("");
+function MainSite({ searchTerm, setSearchTerm }) {
+  const [products, setProducts] = useState([]);
 
-  // Ye hamara temporary database hai (Kal hum ise Google Sheets se connect kar sakte hain)
-  const allProducts = [
-    {
-      id: 1,
-      name: "M10 TWS Earbuds - Noise Cancelling",
-      video: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Sample Video
-      rating: "4.5",
-      reviews: "2,400",
-      image: "https://via.placeholder.com/150",
-      deals: [
-        { store: "AliExpress", price: 850, link: "#", type: "Non-Affiliate" },
-        { store: "Daraz", price: 1250, link: "#", type: "Affiliate" },
-        { store: "Amazon", price: 1800, link: "#", type: "Affiliate" }
-      ].sort((a, b) => a.price - b.price) // Sasta pehle dikhane ka logic
-    },
-    {
-      id: 2,
-      name: "Ultra Smart Watch Series 9",
-      video: "#",
-      rating: "4.8",
-      reviews: "950",
-      image: "https://via.placeholder.com/150",
-      deals: [
-        { store: "Amazon", price: 4500, link: "#", type: "Affiliate" },
-        { store: "Shopify Store", price: 3800, link: "#", type: "Non-Affiliate" },
-        { store: "AliExpress", price: 3200, link: "#", type: "Non-Affiliate" }
-      ].sort((a, b) => a.price - b.price)
-    }
-  ];
+  useEffect(() => {
+    const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const trackClick = async (productName, store, price) => {
+    try {
+      await addDoc(collection(db, "clicks"), {
+        product: productName,
+        store: store,
+        price: price,
+        time: serverTimestamp()
+      });
+    } catch (e) { console.error("Tracking Error: ", e); }
+  };
 
   return (
-    <div style={{ backgroundColor: "#f1f3f4", minHeight: "100vh", fontFamily: "Roboto, sans-serif" }}>
-      {/* Search Header */}
+    <div style={{ backgroundColor: "#f1f3f4", minHeight: "100vh", fontFamily: "sans-serif" }}>
       <div style={{ backgroundColor: "#fff", padding: "40px 20px", textAlign: "center", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}>
         <h1 style={{ margin: "0", color: "#4285F4", fontSize: "2.5rem" }}>Zaibii Global Search</h1>
-        <p style={{ color: "#5f6368" }}>Internet ki har product, sabse sasti qimat mein.</p>
         <input 
           type="text" 
-          placeholder="Search anything (e.g. iPhone, Shoes, Watch)..." 
-          style={{ width: "100%", maxWidth: "600px", padding: "15px 25px", borderRadius: "30px", border: "1px solid #dfe1e5", marginTop: "20px", fontSize: "16px", outline: "none" }}
+          placeholder="Search products..." 
+          style={{ width: "100%", maxWidth: "600px", padding: "15px 25px", borderRadius: "30px", border: "1px solid #dfe1e5", marginTop: "20px", fontSize: "16px" }}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* Results Section */}
       <div style={{ maxWidth: "1100px", margin: "30px auto", padding: "0 20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "25px" }}>
-          {allProducts
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "25px" }}>
+          {products
             .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .map(product => (
-              <div key={product.id} style={{ background: "#fff", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
-                <div style={{ padding: "20px" }}>
-                  <h3 style={{ margin: "0 0 10px 0", color: "#202124" }}>{product.name}</h3>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}>
-                    <span style={{ color: "#fbbc05", fontWeight: "bold" }}>⭐ {product.rating}</span>
-                    <span style={{ color: "#70757a", fontSize: "13px" }}>({product.reviews} reviews)</span>
+              <div key={product.id} style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", border: "1px solid #eee" }}>
+                <h3 style={{ color: "#202124", marginBottom: "15px" }}>{product.name}</h3>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
+                  <div>
+                    <span style={{ fontSize: "11px", color: "#5f6368", display: "block" }}>{product.store}</span>
+                    <span style={{ fontWeight: "bold", color: "#34A853", fontSize: "1.1rem" }}>Rs. {product.price}</span>
                   </div>
-
-                  {/* Video/Image Placeholder */}
-                  <div style={{ width: "100%", height: "180px", background: "#eee", borderRadius: "8px", marginBottom: "15px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <p style={{ color: "#999" }}>Product Video / Image</p>
-                  </div>
-
-                  <p style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "10px" }}>Price Comparison:</p>
-                  {product.deals.map((deal, index) => (
-                    <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", borderRadius: "8px", backgroundColor: index === 0 ? "#e6f4ea" : "#f8f9fa", marginBottom: "5px" }}>
-                      <span>
-                        <strong>{deal.store}</strong>: Rs. {deal.price} 
-                        {index === 0 && <span style={{ marginLeft: "10px", fontSize: "10px", color: "#1e8e3e", fontWeight: "bold" }}>✓ CHEAPEST</span>}
-                      </span>
-                      <a href={deal.link} style={{ color: "#1a73e8", textDecoration: "none", fontWeight: "bold", fontSize: "13px" }}>Buy Now →</a>
-                    </div>
-                  ))}
+                  <a 
+                    href={product.link} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    onClick={() => trackClick(product.name, product.store, product.price)}
+                    style={{ background: "#4285F4", color: "#fff", padding: "8px 15px", borderRadius: "5px", textDecoration: "none", fontWeight: "bold", fontSize: "13px" }}
+                  >
+                    View Deal →
+                  </a>
                 </div>
               </div>
             ))}
         </div>
+        {products.length === 0 && <p style={{ textAlign: "center", color: "#999", marginTop: "50px" }}>No active deals found. Add from Admin Panel!</p>}
       </div>
+
+      <footer style={{ textAlign: 'center', padding: '40px' }}>
+        <Link to="/admin" style={{ color: '#dadce0', textDecoration: 'none', fontSize: '11px' }}>Admin Panel</Link>
+      </footer>
     </div>
+  );
+}
+
+export default function App() {
+  const [searchTerm, setSearchTerm] = useState("");
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainSite searchTerm={searchTerm} setSearchTerm={setSearchTerm} />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
   );
 }
