@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,6 +36,7 @@ export default function App() {
 
   return (
     <div style={{ backgroundColor: "#f1f3f4", minHeight: "100vh", fontFamily: "Roboto, sans-serif" }}>
+      <SpeedInsights />
       {/* Search Header */}
       <div style={{ backgroundColor: "#fff", padding: "40px 20px", textAlign: "center", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}>
         <h1 style={{ margin: "0", color: "#4285F4", fontSize: "2.5rem" }}>Zaibii Global Search</h1>
