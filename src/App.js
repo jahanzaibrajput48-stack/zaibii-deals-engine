@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Analytics } from '@vercel/analytics/react';
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,6 +82,7 @@ export default function App() {
             ))}
         </div>
       </div>
+      <Analytics />
     </div>
   );
 }
