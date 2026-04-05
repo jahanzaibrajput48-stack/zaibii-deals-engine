@@ -15,12 +15,11 @@ function MainSite({ searchTerm, setSearchTerm }) {
     return () => unsubscribe();
   }, []);
 
-  const trackClick = async (productName, store, price) => {
+  const trackClick = async (productName, price) => {
     try {
       await addDoc(collection(db, "clicks"), {
-        product: productName,
-        store: store,
-        price: price,
+        product: productName || "Unknown",
+        price: price || 0,
         time: serverTimestamp()
       });
     } catch (e) { console.error("Tracking Error: ", e); }
@@ -41,20 +40,27 @@ function MainSite({ searchTerm, setSearchTerm }) {
       <div style={{ maxWidth: "1100px", margin: "30px auto", padding: "0 20px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "25px" }}>
           {products
-            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            // 🛡️ FIX: 'name' ki jagah 'title' use kiya aur ?. lagaya taake crash na ho
+            .filter(p => (p.title || "").toLowerCase().includes((searchTerm || "").toLowerCase()))
             .map(product => (
-              <div key={product.id} style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", border: "1px solid #eee" }}>
-                <h3 style={{ color: "#202124", marginBottom: "15px" }}>{product.name}</h3>
+              <div key={product.id} style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", border: "1px solid #eee", overflow: "hidden" }}>
+                {/* 🖼️ Image Display */}
+                {product.mediaUrl && (
+                  <img src={product.mediaUrl} alt={product.title} style={{ width: "100%", height: "200px", objectFit: "contain", marginBottom: "15px" }} />
+                )}
+                
+                <h3 style={{ color: "#202124", marginBottom: "15px", fontSize: "1.1rem" }}>{product.title}</h3>
+                
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: "#f8f9fa", borderRadius: "8px" }}>
                   <div>
-                    <span style={{ fontSize: "11px", color: "#5f6368", display: "block" }}>{product.store}</span>
+                    <span style={{ fontSize: "11px", color: "#5f6368", display: "block" }}>{product.category || "Deals"}</span>
                     <span style={{ fontWeight: "bold", color: "#34A853", fontSize: "1.1rem" }}>Rs. {product.price}</span>
                   </div>
                   <a 
                     href={product.link} 
                     target="_blank" 
                     rel="noreferrer"
-                    onClick={() => trackClick(product.name, product.store, product.price)}
+                    onClick={() => trackClick(product.title, product.price)}
                     style={{ background: "#4285F4", color: "#fff", padding: "8px 15px", borderRadius: "5px", textDecoration: "none", fontWeight: "bold", fontSize: "13px" }}
                   >
                     View Deal →
@@ -63,7 +69,7 @@ function MainSite({ searchTerm, setSearchTerm }) {
               </div>
             ))}
         </div>
-        {products.length === 0 && <p style={{ textAlign: "center", color: "#999", marginTop: "50px" }}>No active deals found.</p>}
+        {products.length === 0 && <p style={{ textAlign: "center", color: "#999", marginTop: "50px" }}>No active deals found. Add some from Admin Panel!</p>}
       </div>
 
       <footer style={{ textAlign: 'center', padding: '40px' }}>
