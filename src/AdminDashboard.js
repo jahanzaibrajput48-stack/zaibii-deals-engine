@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 
 const AdminDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('03183102571z1');
   
   // Product state with media support
   const [product, setProduct] = useState({ 
