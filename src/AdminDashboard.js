@@ -1,116 +1,103 @@
-import React, { useEffect, useState } from "react";
-import { db } from "./firebase";
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
+import React, { useState } from 'react';
 
-export default function AdminDashboard() {
-  const [clicks, setClicks] = useState([]);
+const AdminDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
-  const [pName, setPName] = useState("");
-  const [pPrice, setPPrice] = useState("");
-  const [pLink, setPLink] = useState("");
-  const [pStore, setPStore] = useState("Daraz");
+  // Product state with media support
+  const [product, setProduct] = useState({ 
+    title: '', 
+    price: '', 
+    link: '', 
+    mediaUrl: '', 
+    mediaType: 'image' // 'image' ya 'video'
+  });
 
-  const MY_SECRET_PASSWORD = "zaibii_admin_786"; 
+  const ADMIN_EMAIL = "admin@zaibii.com";
+  const ADMIN_PASS = "zaibii786"; 
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === MY_SECRET_PASSWORD) setIsLoggedIn(true);
-    else alert("Ghalat Password! Dobara koshish karein.");
-  };
-
-  const addProduct = async (e) => {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, "products"), {
-        name: pName,
-        price: Number(pPrice),
-        link: pLink,
-        store: pStore,
-        createdAt: serverTimestamp()
-      });
-      alert("Product Add Ho Gaya! ✅");
-      setPName(""); setPPrice(""); setPLink("");
-    } catch (err) { alert("Error: " + err.message); }
-  };
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      const q = query(collection(db, "clicks"), orderBy("time", "desc"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        setClicks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      });
-      return () => unsubscribe();
+    if (email === ADMIN_EMAIL && password === ADMIN_PASS) {
+      setIsLoggedIn(true);
+    } else {
+      alert("Ghalat Password!");
     }
-  }, [isLoggedIn]);
+  };
+
+  const handleAddProduct = (e) => {
+    e.preventDefault();
+    // Yahan humne 'link' ko check nahi kiya, sirf title zaroori rakha hai
+    if (!product.title || !product.mediaUrl) {
+      alert("Kam az kam Title aur Image/Video URL lazmi dalein!");
+      return;
+    }
+    
+    console.log("Product Ready to Upload:", product);
+    alert("Product Upload Ho Gaya! (Check Console for Data)");
+    
+    // Form reset
+    setProduct({ title: '', price: '', link: '', mediaUrl: '', mediaType: 'image' });
+  };
 
   if (!isLoggedIn) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#f1f3f4" }}>
-        <form onSubmit={handleLogin} style={{ background: "#fff", padding: "40px", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", textAlign: "center" }}>
-          <h2 style={{ color: "#4285F4" }}>Zaibii Admin Login</h2>
-          <input type="password" placeholder="Enter Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #ddd", marginBottom: "20px" }} />
-          <button type="submit" style={{ width: "100%", padding: "12px", background: "#4285F4", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>Login</button>
+      <div style={{ padding: '50px', textAlign: 'center' }}>
+        <h2>Admin Login</h2>
+        <form onSubmit={handleLogin}>
+          <input type="email" placeholder="Email" onChange={(e) => setEmail(e.target.value)} required style={{display:'block', margin:'10px auto', padding:'10px'}}/>
+          <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} required style={{display:'block', margin:'10px auto', padding:'10px'}}/>
+          <button type="submit" style={{padding:'10px 20px', cursor:'pointer'}}>Login</button>
         </form>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "40px", fontFamily: "sans-serif", backgroundColor: "#f8f9fa", minHeight: "100vh" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Zaibii Control Center ⚙️</h1>
-        <button onClick={() => setIsLoggedIn(false)} style={{ background: "#ea4335", color: "#fff", border: "none", padding: "8px 15px", borderRadius: "5px", cursor: "pointer" }}>Logout</button>
-      </div>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      <h1>Zaibii Admin Panel</h1>
+      
+      <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+        <h3>Naya Product (Deal) Add Karein</h3>
+        <form onSubmit={handleAddProduct}>
+          <input type="text" placeholder="Product Name" value={product.title} onChange={(e) => setProduct({...product, title: e.target.value})} style={{width:'90%', margin:'10px 0', padding:'10px'}} required />
+          
+          <input type="text" placeholder="Price (e.g. Rs. 1500)" value={product.price} onChange={(e) => setProduct({...product, price: e.target.value})} style={{width:'90%', margin:'10px 0', padding:'10px'}} />
+          
+          <input type="text" placeholder="Affiliate Link (Optional)" value={product.link} onChange={(e) => setProduct({...product, link: e.target.value})} style={{width:'90%', margin:'10px 0', padding:'10px'}} />
+          
+          <input type="text" placeholder="Image or Video URL" value={product.mediaUrl} onChange={(e) => setProduct({...product, mediaUrl: e.target.value})} style={{width:'90%', margin:'10px 0', padding:'10px'}} required />
+          
+          <div style={{margin: '10px 0'}}>
+            <label>Media Type: </label>
+            <select value={product.mediaType} onChange={(e) => setProduct({...product, mediaType: e.target.value})} style={{padding:'5px'}}>
+              <option value="image">Image (JPG/PNG)</option>
+              <option value="video">Video (MP4/Link)</option>
+            </select>
+          </div>
 
-      <div style={{ background: "#fff", padding: "25px", borderRadius: "12px", marginBottom: "30px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-        <h3 style={{ marginTop: 0 }}>➕ Add New Product Deal</h3>
-        <form onSubmit={addProduct} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "15px" }}>
-          <input type="text" placeholder="Product Name" value={pName} onChange={(e) => setPName(e.target.value)} required style={{ padding: "10px", borderRadius: "5px", border: "1px solid #ddd" }} />
-          <input type="number" placeholder="Price (PKR)" value={pPrice} onChange={(e) => setPPrice(e.target.value)} required style={{ padding: "10px", borderRadius: "5px", border: "1px solid #ddd" }} />
-          <select value={pStore} onChange={(e) => setPStore(e.target.value)} style={{ padding: "10px", borderRadius: "5px", border: "1px solid #ddd" }}>
-            <option value="Daraz">Daraz</option>
-            <option value="AliExpress">AliExpress</option>
-            <option value="Amazon">Amazon</option>
-          </select>
-          <input type="text" placeholder="Affiliate Link" value={pLink} onChange={(e) => setPLink(e.target.value)} required style={{ padding: "10px", borderRadius: "5px", border: "1px solid #ddd", gridColumn: "span 2" }} />
-          <button type="submit" style={{ background: "#34A853", color: "#fff", border: "none", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>Save Product</button>
+          <button type="submit" style={{ backgroundColor: '#28a745', color: 'white', padding: '15px 30px', border:'none', borderRadius:'5px', cursor: 'pointer', fontSize:'16px' }}>
+            Upload Product
+          </button>
         </form>
       </div>
 
-      <div style={{ display: "flex", gap: "20px", marginBottom: "30px" }}>
-        <div style={{ padding: "20px", background: "#4285F4", color: "#fff", borderRadius: "10px", flex: 1 }}>
-          <h3 style={{ margin: 0, opacity: 0.8 }}>Total Clicks</h3>
-          <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0 0" }}>{clicks.length}</p>
-        </div>
-        <div style={{ padding: "20px", background: "#34A853", color: "#fff", borderRadius: "10px", flex: 1 }}>
-          <h3 style={{ margin: 0, opacity: 0.8 }}>Est. Earning</h3>
-          <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0 0" }}>Rs. {clicks.length * 50}</p>
-        </div>
-      </div>
+      <hr style={{margin: '40px 0'}} />
 
-      <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", boxShadow: "0 2px 5px rgba(0,0,0,0.05)" }}>
-        <h4>Recent Activity Log</h4>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "2px solid #eee" }}>
-              <th style={{ padding: "12px" }}>Product</th>
-              <th style={{ padding: "12px" }}>Store</th>
-              <th style={{ padding: "12px" }}>Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clicks.map(click => (
-              <tr key={click.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "12px" }}>{click.product}</td>
-                <td style={{ padding: "12px" }}>{click.store}</td>
-                <td style={{ padding: "12px" }}>Rs. {click.price}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <h3>Preview (Kaisa dikhega):</h3>
+      <div style={{ border: '1px solid #ddd', padding: '15px', width: '300px', borderRadius: '10px', textAlign:'center' }}>
+        {product.mediaType === 'image' ? (
+          <img src={product.mediaUrl || 'https://via.placeholder.com/150'} alt="preview" style={{width: '100%', borderRadius: '5px'}} />
+        ) : (
+          <video src={product.mediaUrl} controls style={{width: '100%', borderRadius: '5px'}} />
+        )}
+        <h4>{product.title || "Product Name"}</h4>
+        <p style={{color: 'green', fontWeight:'bold'}}>{product.price || "Price TBD"}</p>
+        {product.link && <button style={{backgroundColor: '#ff9900', border:'none', padding: '10px', color:'white', borderRadius:'5px'}}>Buy Now</button>}
       </div>
     </div>
   );
-}
+};
+
+export default AdminDashboard;
