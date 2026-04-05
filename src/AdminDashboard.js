@@ -1,178 +1,109 @@
-import React, { useState } from 'react';
-import { db } from './firebase'; // Aapki firebase.js file se db import ho raha hai
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"; 
+import React, { useState, useEffect } from "react";
+import { db } from "./firebase";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
 
-const AdminDashboard = () => {
-  const [password, setPassword] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [product, setProduct] = useState({
-    title: '',
-    price: '',
-    category: 'Deals',
-    link: '', 
-    mediaUrl: '',
-    mediaType: 'image',
-  });
+export default function AdminDashboard() {
+  const [products, setProducts] = useState([]);
+  const [clicks, setClicks] = useState([]);
+  const [newProduct, setNewProduct] = useState({ title: "", price: "", link: "", mediaUrl: "", category: "Trending" });
+  const [showUpload, setShowUpload] = useState(false);
 
-  // --- 1. Login Logic ---
-  const handleLogin = (e) => {
+  // 1. Fetch Products & Clicks Activity
+  useEffect(() => {
+    const qProducts = query(collection(db, "products"), orderBy("createdAt", "desc"));
+    const unsubscribeProducts = onSnapshot(qProducts, (snap) => {
+      setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const qClicks = query(collection(db, "clicks"), orderBy("time", "desc"));
+    const unsubscribeClicks = onSnapshot(qClicks, (snap) => {
+      setClicks(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => { unsubscribeProducts(); unsubscribeClicks(); };
+  }, []);
+
+  // 2. Handle Manual Upload
+  const handleUpload = async (e) => {
     e.preventDefault();
-    if (password === "03183102571z1") {
-      setIsLoggedIn(true);
-    } else {
-      alert("Ghalat Password! Dobara koshish karein.");
-    }
-  };
-
-  // --- 2. Auto-Fill Logic (Using your API Key) ---
-  const handleAutoFill = async (url) => {
-    if (!url || !url.startsWith('http')) return;
-    setLoading(true);
-    try {
-      const apiKey = "f896154306570074434e939956ce49a2"; 
-      const res = await fetch(`https://api.linkpreview.net/?key=${apiKey}&q=${url}`);
-      const data = await res.json();
-      
-      if (data && data.title) {
-        setProduct(prev => ({
-          ...prev,
-          title: data.title || prev.title,
-          mediaUrl: data.image || prev.mediaUrl,
-        }));
-      }
-    } catch (error) {
-      console.log("Auto-fill error.");
-    }
-    setLoading(false);
-  };
-
-  // --- 3. Firebase Save Logic ---
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (!newProduct.title || !newProduct.link) return alert("Please fill Title and Link!");
     
-    if (!product.title || !product.mediaUrl) {
-      alert("Title aur Image URL lazmi hain!");
-      return;
-    }
-
-    setLoading(true);
     try {
-      // "products" naam ki collection mein data save ho raha hai
       await addDoc(collection(db, "products"), {
-        ...product,
-        createdAt: serverTimestamp(), 
+        ...newProduct,
+        createdAt: serverTimestamp()
       });
-
-      alert("✅ Product Firebase mein save ho gaya!");
-      
-      // Form Reset
-      setProduct({ title: '', price: '', category: 'Deals', link: '', mediaUrl: '', mediaType: 'image' });
-    } catch (error) {
-      alert("❌ Error: " + error.message);
-    }
-    setLoading(false);
+      alert("✅ Product Added Successfully!");
+      setNewProduct({ title: "", price: "", link: "", mediaUrl: "", category: "Trending" });
+      setShowUpload(false);
+    } catch (err) { console.error(err); }
   };
 
-  // --- UI: Login Screen ---
-  if (!isLoggedIn) {
-    return (
-      <div style={containerStyle}>
-        <div style={cardStyle}>
-          <h2>🔐 Zaibii Admin</h2>
-          <form onSubmit={handleLogin}>
-            <input 
-              type="password" 
-              placeholder="Enter Password" 
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-            />
-            <button type="submit" style={btnStyle}>Login</button>
+  return (
+    <div style={{ padding: "30px", backgroundColor: "#f4f7f9", minHeight: "100vh", fontFamily: "sans-serif" }}>
+      
+      {/* --- TOP HEADER & UPLOAD BAR --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <h1 style={{ color: "#202124" }}>Admin Control Center</h1>
+        <button 
+          onClick={() => setShowUpload(!showUpload)}
+          style={{ padding: '12px 25px', backgroundColor: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          {showUpload ? "× Close Panel" : "+ Add New Product"}
+        </button>
+      </div>
+
+      {/* --- QUICK UPLOAD FORM (The Bar you asked for) --- */}
+      {showUpload && (
+        <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', marginBottom: '30px' }}>
+          <h3>🚀 Quick Upload Product</h3>
+          <form onSubmit={handleUpload} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <input type="text" placeholder="Product Title" value={newProduct.title} onChange={e => setNewProduct({...newProduct, title: e.target.value})} style={inputStyle} />
+            <input type="text" placeholder="Price (e.g. Rs. 1,200)" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} style={inputStyle} />
+            <input type="text" placeholder="Image URL" value={newProduct.mediaUrl} onChange={e => setNewProduct({...newProduct, mediaUrl: e.target.value})} style={inputStyle} />
+            <input type="text" placeholder="Product Link (Affiliate)" value={newProduct.link} onChange={e => setNewProduct({...newProduct, link: e.target.value})} style={inputStyle} />
+            <select value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} style={inputStyle}>
+                <option value="Trending">Trending</option>
+                <option value="AliExpress">AliExpress</option>
+                <option value="Daraz">Daraz</option>
+            </select>
+            <button type="submit" style={{ gridColumn: 'span 2', padding: '12px', backgroundColor: '#34a853', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold' }}>Publish to Site</button>
           </form>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  // --- UI: Dashboard Screen ---
-  return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: 'auto', fontFamily: 'Arial' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3>Dashboard</h3>
-        <button onClick={() => setIsLoggedIn(false)} style={{padding: '5px 10px', cursor: 'pointer'}}>Logout</button>
+      {/* --- ACTIVITY STATS --- */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+        <div style={statCard}><h3>📦 Total Products</h3><p style={{fontSize: '2rem', margin: '0'}}>{products.length}</p></div>
+        <div style={statCard}><h3>🖱️ Total Clicks</h3><p style={{fontSize: '2rem', margin: '0', color: '#1a73e8'}}>{clicks.length}</p></div>
+        <div style={statCard}><h3>🔥 Recent Activity</h3><p style={{fontSize: '1rem', color: '#555'}}>{clicks[0]?.product || "No clicks yet"}</p></div>
       </div>
 
-      <form onSubmit={handleSubmit} style={formStyle}>
-        <label style={labelStyle}>Product Link (Optional):</label>
-        <input 
-          type="text" 
-          placeholder="Paste link & click outside" 
-          value={product.link}
-          onChange={(e) => setProduct({...product, link: e.target.value})}
-          onBlur={(e) => handleAutoFill(e.target.value)}
-          style={inputStyle}
-        />
-
-        <label style={labelStyle}>Product Title:</label>
-        <input 
-          type="text" 
-          value={product.title}
-          onChange={(e) => setProduct({...product, title: e.target.value})}
-          style={inputStyle}
-          required
-        />
-
-        <label style={labelStyle}>Price (RS):</label>
-        <input 
-          type="number" 
-          value={product.price}
-          onChange={(e) => setProduct({...product, price: e.target.value})}
-          style={inputStyle}
-        />
-
-        <label style={labelStyle}>Media URL (Image/Video):</label>
-        <input 
-          type="text" 
-          value={product.mediaUrl}
-          onChange={(e) => setProduct({...product, mediaUrl: e.target.value})}
-          style={inputStyle}
-          required
-        />
-
-        <label style={labelStyle}>Type:</label>
-        <select 
-          value={product.mediaType} 
-          onChange={(e) => setProduct({...product, mediaType: e.target.value})}
-          style={{marginBottom: '15px', padding: '10px'}}
-        >
-          <option value="image">Image 🖼️</option>
-          <option value="video">Video 🎥</option>
-        </select>
-
-        {product.mediaUrl && (
-          <div style={{textAlign: 'center', margin: '10px 0'}}>
-            <img src={product.mediaUrl} alt="Preview" style={{width: '100px', borderRadius: '5px'}} />
-          </div>
-        )}
-
-        <button 
-          type="submit" 
-          disabled={loading} 
-          style={{ ...btnStyle, background: '#28a745' }}
-        >
-          {loading ? "Uploading..." : "🚀 Save to Firebase"}
-        </button>
-      </form>
+      {/* --- RECENT CLICK LOGS (Personal Activity Data) --- */}
+      <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #ddd' }}>
+        <h3>📜 Real-time Click Activity</h3>
+        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee' }}>
+              <th style={{ padding: '10px' }}>Product</th>
+              <th>Price</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clicks.map(click => (
+              <tr key={click.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '10px' }}>{click.product}</td>
+                <td>{click.price}</td>
+                <td style={{ color: '#888', fontSize: '12px' }}>{click.time?.toDate().toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
-};
+}
 
-// --- Styles ---
-const containerStyle = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f0f0f0' };
-const cardStyle = { background: '#fff', padding: '40px', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', textAlign: 'center' };
-const inputStyle = { width: '100%', padding: '12px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #ddd', boxSizing: 'border-box' };
-const btnStyle = { width: '100%', padding: '12px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
-const formStyle = { background: '#fff', padding: '25px', borderRadius: '15px', border: '1px solid #eee' };
-const labelStyle = { display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' };
-
-export default AdminDashboard;
+const inputStyle = { padding: '12px', borderRadius: '6px', border: '1px solid #ddd', outline: 'none' };
+const statCard = { background: '#fff', padding: '20px', borderRadius: '12px', textAlign: 'center', border: '1px solid #eee', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' };
